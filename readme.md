@@ -18,8 +18,8 @@ Siga os passos abaixo para configurar e executar o projeto em seu ambiente local
 **1. Clone o Repositório**
 
 ```bash
-git clone <URL_DO_SEU_REPOSITORIO>
-cd <NOME_DA_PASTA_DO_PROJETO>
+git clone git@github.com:raieenryuu/lzw-huffman-comparacao.git
+cd lzw-huffman-comparacao
 ```
 
 **2. Instale as Dependências**

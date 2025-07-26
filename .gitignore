@@ -1,0 +1,12 @@
+node_modules/
+
+# Ignora todo o conteúdo da pasta onde os arquivos comprimidos e reconstruídos são salvos
+resultados/
+
+resultados_compressao.csv
+
+dist/
+build/
+
+.DS_Store
+Thumbs.db

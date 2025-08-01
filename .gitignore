@@ -4,6 +4,7 @@ node_modules/
 resultados/
 
 resultados_compressao.csv
+resultados_medias_compressao.csv
 
 dist/
 build/

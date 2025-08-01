@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compressão de Imagens: Huffman & LZW</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #d6d6d6;
+            color: #333;
+        }
+        .container {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 16px;
+            max-width: 1800px;
+            margin: 12px auto;
+            display: flex;
+            flex-direction: column;
+        }
+        h1, h2 {
+            color: #440D0F;
+        }
+        input[type="file"] {
+            margin-bottom: 32px;
+        }
+        button {
+            background-color: #440D0F;
+            color: white;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #440D0F;
+        }
+        .results-section {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .image-preview {
+            display: none;
+            margin-top: 16px;
+            text-align: center;
+        }
+        .image-preview img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .error {
+            color: red;
+            margin-top: 12px;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            font-style: italic;
+            color: #4E6766;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Algoritmos e Estrutura de Dados II</h1>
+        <h1>Compressão de Imagens com Huffman e LZW</h1>
+
+        <p>Selecione uma imagem BMP para comparar os algoritmos de compressão.</p>
+
+        <input type="file" id="imageInput" accept="image/bmp">
+
+         <!-- Aceita apenas imagens BMP, mas dá pra alterar -->
+        <button id="compressButton">Iniciar compressão e análise</button>
+
+        <div id="loading">Processando imagem, aguarde...</div>
+
+        <div class="image-preview" id="imagePreview">
+            <h2>Imagem original</h2>
+            <img id="originalImage" src="#" style="display: none;">
+            <p id="textSizeImageOriginal"></p>
+        </div>
+
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <h2>Resultados dos algoritmos</h2>
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>Algoritmo</th>
+                        <th>Tamanho Original (Bytes)</th>
+                        <th>Tamanho Comprimido (Bytes)</th>
+                        <th>Taxa de Compressão (%)</th>
+                        <th>Tempo de Compressão (ms)</th>
+                        <th>Tempo de Descompressão (ms)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                </tbody>
+            </table>
+
+            <p>Tamanho original: é o tamanho do arquivo de imagem antes da compressão, em bytes.</p>
+            <p>Tamanho comprimido: é o tamanho do arquivo após a compressão usando o
+            algoritmo específico (Dados + Estruturas auxiliares, como dicionário em LZW e Árvore em Huffman), também em bytes.</p>
+            <p>Taxa de compressão: é a porcentagem de redução do tamanho do arquivo original
+            em relação ao tamanho comprimido. É calculada como: <strong>Taxa de Compressão = ((Tamanho Original - Tamanho Comprimido) / Tamanho Original) * 100</strong>.</p>
+            <p>Tempo de compressão: é o tempo gasto para comprimir a imagem usando o algoritmo,
+            medido em milissegundos (ms).</p>
+            <p>Tempo de descompressão: é o tempo gasto para descomprimir a imagem comprimida
+            de volta ao seu formato original, também medido em milissegundos (ms).</p>
+
+            <h2>Visualize as imagens após descompressão</h2>
+            <div id="reconstructedImages">
+            </div>
+            
+        </div>
+
+        <p class="error" id="errorMessage" style="display: none;"></p>
+    </div>
+
+    <!-- Código Huffman compilado com tsc hardcoded -->
+    <script>
+        class HuffmanNode {
+            constructor(value, frequency) {
+                this.left = null;
+                this.right = null;
+                this.value = value;
+                this.frequency = frequency;
+            }
+        }
+
+        class Huffman {
+            static buildFrequencyMap(data) {
+                const freqMap = new Map();
+                for (const value of data) {
+                    freqMap.set(value, (freqMap.get(value) || 0) + 1);
+                }
+                return freqMap;
+            }
+
+            static buildHuffmanTree(freqMap) {
+                const priorityQueue = [];
+                for (const [value, frequency] of freqMap.entries()) {
+                    priorityQueue.push(new HuffmanNode(value, frequency));
+                }
+
+                while (priorityQueue.length > 1) {
+                    priorityQueue.sort((a, b) => a.frequency - b.frequency);
+                    const left = priorityQueue.shift();
+                    const right = priorityQueue.shift();
+
+                    const parent = new HuffmanNode(null, left.frequency + right.frequency);
+                    parent.left = left;
+                    parent.right = right;
+                    priorityQueue.push(parent);
+                }
+                return priorityQueue[0];
+            }
+
+            static generateCodes(node, prefix, codeMap) {
+                if (node.value !== null) {
+                    codeMap.set(node.value, prefix || '0');
+                    return;
+                }
+                if (node.left) {
+                    this.generateCodes(node.left, prefix + '0', codeMap);
+                }
+                if (node.right) {
+                    this.generateCodes(node.right, prefix + '1', codeMap);
+                }
+            }
+
+            static encode(data) {
+                if (data.length === 0) return { encodedData: '', tree: new HuffmanNode(null, 0) };
+                const freqMap = this.buildFrequencyMap(data);
+                const tree = this.buildHuffmanTree(freqMap);
+                const codeMap = new Map();
+                this.generateCodes(tree, '', codeMap);
+
+                let encodedData = '';
+                for (const value of data) {
+                    encodedData += codeMap.get(value);
+                }
+                return { encodedData, tree };
+            }
+
+            static decode(encodedData, tree) {
+                if (!encodedData) return [];
+                const decodedData = [];
+                let currentNode = tree;
+                for (const bit of encodedData) {
+                    currentNode = bit === '0' ? currentNode.left : currentNode.right;
+                    if (currentNode.value !== null) {
+                        decodedData.push(currentNode.value);
+                        currentNode = tree;
+                    }
+                }
+                return decodedData;
+            }
+        }
+    </script>
+
+    <!-- Código LZW compilado com tsc hardcoded -->
+    <script>
+        class LZW {
+            static compress(data) {
+                let dictSize = 256;
+                const dictionary = new Map();
+                for (let i = 0; i < 256; i++) {
+                    dictionary.set(String.fromCharCode(i), i);
+                }
+
+                let p = '';
+                const result = [];
+                for (const value of data) {
+                    const c = String.fromCharCode(value);
+                    const pc = p + c;
+                    if (dictionary.has(pc)) {
+                        p = pc;
+                    } else {
+                        result.push(dictionary.get(p));
+                        dictionary.set(pc, dictSize++);
+                        p = c;
+                    }
+                }
+                if (p !== '') result.push(dictionary.get(p));
+                return result;
+            }
+
+            static decompress(data) {
+                if (data.length === 0)
+                    return [];
+                let dictSize = 256;
+                const dictionary = new Array(4096);
+                for (let i = 0; i < 256; i++) {
+                    dictionary[i] = String.fromCharCode(i);
+                }
+                let dataIdx = 0;
+                let k = data[dataIdx++];
+                let p = String.fromCharCode(k);
+                const result = [p.charCodeAt(0)];
+                const dataLen = data.length;
+                while (dataIdx < dataLen) {
+                    k = data[dataIdx++];
+                    let entry;
+                    if (k < dictSize) {
+                        entry = dictionary[k];
+                    }
+                    else if (k === dictSize) {
+                        entry = p + p.charAt(0);
+                    }
+                    else {
+                        throw new Error('Erro na descompressão: código inválido.');
+                    }
+                    for (let i = 0, len = entry.length; i < len; i++) {
+                        result.push(entry.charCodeAt(i));
+                    }
+                    dictionary[dictSize++] = p + entry.charAt(0);
+                    p = entry;
+                }
+                return result;
+            }
+        }
+    </script>
+
+    <!-- Execução principal -->
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const compressButton = document.getElementById('compressButton');
+        const originalImage = document.getElementById('originalImage');
+        const textSizeImageOriginal = document.getElementById('textSizeImageOriginal');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsTableBody = resultsTable.querySelector('tbody');
+        const errorMessage = document.getElementById('errorMessage');
+        const imagePreviewDiv = document.getElementById('imagePreview');
+        const loadingDiv = document.getElementById('loading');
+        const reconstructedImagesDiv = document.getElementById('reconstructedImages');
+
+        compressButton.addEventListener('click', async () => {
+            const file = imageInput.files[0];
+            if (!file) {
+                displayError('Por favor, selecione uma imagem para comprimir.');
+                return;
+            }
+            resetUI();
+            imagePreviewDiv.style.display = 'block';
+            loadingDiv.style.display = 'block';
+
+            try {
+                const img = new Image();
+                const reader = new FileReader();
+
+                reader.onload = async (e) => {
+                    // Mostra a imagem original
+                    originalImage.src = e.target.result;
+                    originalImage.style.display = 'block';
+
+                    img.onload = async () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+
+                        const imageData = ctx.getImageData(0, 0, img.width, img.height);
+                        const pixelData = Array.from(imageData.data);
+
+                        await runCompressionTests(pixelData, img.width, img.height);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.onerror = (e) => displayError('Erro ao ler o arquivo: ' + e.target.error.name);
+                reader.readAsDataURL(file);
+            } catch (error) {
+                displayError('Aconteceu um erro: ' + error.message);
+                console.error(error);
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        });
+
+        function resetUI() {
+            errorMessage.style.display = 'none';
+            resultsSection.style.display = 'none';
+            resultsTableBody.innerHTML = '';
+            reconstructedImagesDiv.innerHTML = '';
+            originalImage.style.display = 'none';
+            textSizeImageOriginal.textContent = '';
+        }
+        function displayError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            loadingDiv.style.display = 'none';
+        }
+
+        async function runCompressionTests(pixelData, width, height) {
+            const results = [];
+            const rawPixelDataSize = pixelData.length;
+            textSizeImageOriginal.textContent = `Tamanho do arquivo de origem: ${rawPixelDataSize} bytes`;
+
+            const huffmanStartTime = performance.now();
+            const { encodedData: huffmanEncoded, tree: huffmanTree } = Huffman.encode(pixelData);
+            const huffmanEndTime = performance.now();
+            const huffmanCompressionTime = huffmanEndTime - huffmanStartTime;
+
+            const huffmanDecodeStartTime = performance.now();
+            const huffmanDecoded = Huffman.decode(huffmanEncoded, huffmanTree);
+            const huffmanDecodeEndTime = performance.now();
+            const huffmanDecompressionTime = huffmanDecodeEndTime - huffmanDecodeStartTime;
+
+            const huffmanTreeJson = JSON.stringify(huffmanTree);
+            const huffmanTreeSize = huffmanTreeJson.length;
+            const huffmanHeaderSize = 4;
+            const huffmanCompressedBits = huffmanEncoded.length;
+            const huffmanCompressedDataBytes = Math.ceil(huffmanCompressedBits / 8);
+            const huffmanTotalCompressedBytes = huffmanHeaderSize + huffmanTreeSize + huffmanCompressedDataBytes;
+            const huffmanCompressionRatio = ((1 - huffmanTotalCompressedBytes / rawPixelDataSize) * 100).toFixed(2);
+
+            results.push({
+                algorithm: 'Huffman',
+                originalSize: rawPixelDataSize,
+                compressedSize: huffmanTotalCompressedBytes,
+                compressionRatio: huffmanCompressionRatio,
+                compressionTime: huffmanCompressionTime.toFixed(2),
+                decompressionTime: huffmanDecompressionTime.toFixed(2)
+            });
+
+            const huffmanImageData = new ImageData(new Uint8ClampedArray(huffmanDecoded), width, height);
+            createImageCanvas(huffmanImageData, width, height, 'Huffman reconstruída');
+
+            const lzwStartTime = performance.now();
+            const lzwCompressed = LZW.compress(pixelData);
+            const lzwEndTime = performance.now();
+            const lzwCompressionTime = lzwEndTime - lzwStartTime;
+
+            const lzwDecodeStartTime = performance.now();
+            const lzwDecoded = LZW.decompress(lzwCompressed);
+            const lzwDecodeEndTime = performance.now();
+            const lzwDecompressionTime = lzwDecodeEndTime - lzwDecodeStartTime;
+
+            const lzwCompressedBytes = lzwCompressed.length * 2;
+            const lzwCompressionRatio = ((1 - lzwCompressedBytes / rawPixelDataSize) * 100).toFixed(2);
+
+            results.push({
+                algorithm: 'LZW',
+                originalSize: rawPixelDataSize,
+                compressedSize: lzwCompressedBytes,
+                compressionRatio: lzwCompressionRatio,
+                compressionTime: lzwCompressionTime.toFixed(2),
+                decompressionTime: lzwDecompressionTime.toFixed(2)
+            });
+
+            const lzwImageData = new ImageData(new Uint8ClampedArray(lzwDecoded), width, height);
+            createImageCanvas(lzwImageData, width, height, 'LZW reconstruída');
+
+            displayResults(results);
+        }
+
+        function displayResults(results) {
+            resultsTableBody.innerHTML = '';
+            results.forEach(res => {
+                const row = resultsTableBody.insertRow();
+                row.insertCell().textContent = res.algorithm;
+                row.insertCell().textContent = res.originalSize;
+                row.insertCell().textContent = res.compressedSize;
+                row.insertCell().textContent = `${res.compressionRatio}%`;
+                row.insertCell().textContent = `${res.compressionTime} ms`;
+                row.insertCell().textContent = `${res.decompressionTime} ms`;
+            });
+            resultsSection.style.display = 'block';
+        }
+
+        function createImageCanvas(imageData, width, height, title) {
+            const container = document.createElement('div');
+            applyCanvasStyle(container);
+
+            const h3 = document.createElement('h3');
+            h3.textContent = title;
+            container.appendChild(h3);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.border = '1px solid #ccc';
+            canvas.getContext('2d').putImageData(imageData, 0, 0);
+            container.appendChild(canvas);
+
+            reconstructedImagesDiv.appendChild(container);
+        }
+
+        function applyCanvasStyle(container) {
+            container.style.display = 'inline-block';
+            container.style.margin = '12px';
+            container.style.textAlign = 'center';
+        }
+    </script>
+</body>
+</html>

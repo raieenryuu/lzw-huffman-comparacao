@@ -30,33 +30,42 @@ export default class LZW {
     }
 
     public static decompress(data: number[]): number[] {
+        if (data.length === 0) return [];
+
         let dictSize = 256;
-        const dictionary = new Map<number, string>();
+        const dictionary: string[] = new Array(4096);
         for (let i = 0; i < 256; i++) {
-            dictionary.set(i, String.fromCharCode(i));
+            dictionary[i] = String.fromCharCode(i);
         }
 
-        let p = String.fromCharCode(data.shift()!);
+        let dataIdx = 0;
+        let k = data[dataIdx++];
+        let p = String.fromCharCode(k);
         const result: number[] = [p.charCodeAt(0)];
 
-        for (const k of data) {
+        const dataLen = data.length;
+        while (dataIdx < dataLen) {
+            k = data[dataIdx++];
             let entry: string;
-            if (dictionary.has(k)) {
-                entry = dictionary.get(k)!;
+
+            if (k < dictSize) {
+                entry = dictionary[k];
             } else if (k === dictSize) {
                 entry = p + p.charAt(0);
             } else {
                 throw new Error('Erro na descompressão: código inválido.');
             }
 
-            for (const char of entry) {
-                result.push(char.charCodeAt(0));
+            for (let i = 0, len = entry.length; i < len; i++) {
+                result.push(entry.charCodeAt(i));
             }
-            
-            dictionary.set(dictSize++, p + entry.charAt(0));
+
+            dictionary[dictSize++] = p + entry.charAt(0);
             p = entry;
         }
 
         return result;
     }
+
+
 }

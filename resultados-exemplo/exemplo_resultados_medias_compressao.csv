@@ -1,0 +1,3 @@
+"Algoritmo","Taxa de Compressão Média (%)","Tempo Médio Compressão (ms)","Tempo Médio Descompressão (ms)"
+"Huffman","21.40","103.84","90.08"
+"LZW","35.15","240.97","66.60"

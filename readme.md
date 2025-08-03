@@ -4,7 +4,7 @@ Este projeto é uma aplicação de linha de comando desenvolvida em TypeScript p
 
 A aplicação processa imagens no formato `.bmp`, realiza a compressão e descompressão com ambos os algoritmos, e gera um relatório detalhado com métricas de desempenho, incluindo taxa de compressão e tempo de execução.
 
-> A nível de curiosidade, é possível testar os algoritmos individualmente no github pages do projeto, cheque mais detalhes em: (Adicionar link aqui github pages) 
+> A nível de curiosidade, é possível testar os algoritmos individualmente no github pages do projeto, cheque mais detalhes em: [https://raieenryuu.github.io/lzw-huffman-comparacao/](https://raieenryuu.github.io/lzw-huffman-comparacao/)
 
 ## Pré-requisitos
 

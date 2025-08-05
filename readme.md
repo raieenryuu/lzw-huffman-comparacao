@@ -6,8 +6,6 @@ A aplicação processa imagens no formato `.bmp`, realiza a compressão e descom
 
 > A nível de curiosidade, é possível testar os algoritmos individualmente no github pages do projeto, cheque mais detalhes em: [https://raieenryuu.github.io/lzw-huffman-comparacao/](https://raieenryuu.github.io/lzw-huffman-comparacao/)
 
-<img src="qr_code.png" width=420/>
-
 ## Pré-requisitos
 
 Antes de começar, certifique-se de que você tem os seguintes softwares instalados em sua máquina:

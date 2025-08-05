@@ -49,11 +49,18 @@
             margin-top: 20px;
             border-top: 1px solid #eee;
             padding-top: 20px;
+            width: 100%;
+        }
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-bottom: 20px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 16px;
+            min-width: 600px;
         }
         th, td {
             border: 1px solid #ddd;
@@ -67,6 +74,7 @@
             display: none;
             margin-top: 16px;
             text-align: center;
+            width: 100%;
         }
         .image-preview img {
             max-width: 100%;
@@ -84,6 +92,37 @@
             margin-top: 20px;
             font-style: italic;
             color: #4E6766;
+        }
+        #reconstructedImages {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            width: 100%;
+        }
+        p {
+            text-align: left;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+        
+        /* Mobile */
+        @media (max-width: 768px) {
+            body {
+                margin: 10px;
+            }
+            .container {
+                padding: 15px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            h2 {
+                font-size: 20px;
+            }
+            p {
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -109,21 +148,23 @@
 
         <div class="results-section" id="resultsSection" style="display: none;">
             <h2>Resultados dos algoritmos</h2>
-            <table id="resultsTable">
-                <thead>
-                    <tr>
-                        <th>Algoritmo</th>
-                        <th>Tamanho Original (Bytes)</th>
-                        <th>Tamanho Comprimido (Bytes)</th>
-                        <th>Taxa de Compressão (%)</th>
-                        <th>Tempo de Compressão (ms)</th>
-                        <th>Tempo de Descompressão (ms)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    
-                </tbody>
-            </table>
+            <div class="table-container">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>Algoritmo</th>
+                            <th>Tamanho Original (Bytes)</th>
+                            <th>Tamanho Comprimido (Bytes)</th>
+                            <th>Taxa de Compressão (%)</th>
+                            <th>Tempo de Compressão (ms)</th>
+                            <th>Tempo de Descompressão (ms)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                    </tbody>
+                </table>
+            </div>
 
             <p>Tamanho original: é o tamanho do arquivo de imagem antes da compressão, em bytes.</p>
             <p>Tamanho comprimido: é o tamanho do arquivo após a compressão usando o
@@ -445,8 +486,8 @@
 
         function createImageCanvas(imageData, width, height, title) {
             const container = document.createElement('div');
-            applyCanvasStyle(container);
-
+            container.className = 'image-container';
+            
             const h3 = document.createElement('h3');
             h3.textContent = title;
             container.appendChild(h3);
@@ -455,6 +496,8 @@
             canvas.width = width;
             canvas.height = height;
             canvas.style.border = '1px solid #ccc';
+            canvas.style.maxWidth = '100%';
+            canvas.style.height = 'auto';
             canvas.getContext('2d').putImageData(imageData, 0, 0);
             container.appendChild(canvas);
 

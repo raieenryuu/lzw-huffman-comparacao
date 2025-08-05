@@ -92,9 +92,9 @@
         <h1>Algoritmos e Estrutura de Dados II</h1>
         <h1>Compressão de Imagens com Huffman e LZW</h1>
 
-        <p>Selecione uma imagem BMP para comparar os algoritmos de compressão.</p>
+        <p>Selecione uma imagem BMP, PNG ou JPEG para comparar os algoritmos de compressão.</p>
 
-        <input type="file" id="imageInput" accept="image/bmp">
+        <input type="file" id="imageInput" accept="image/bmp, image/png, image/jpeg">
 
          <!-- Aceita apenas imagens BMP, mas dá pra alterar -->
         <button id="compressButton">Iniciar compressão e análise</button>
@@ -308,6 +308,13 @@
                 displayError('Por favor, selecione uma imagem para comprimir.');
                 return;
             }
+
+            const validFormats = ['image/bmp', 'image/png', 'image/jpeg'];
+            if (!validFormats.includes(file.type)) {
+                displayError('Formato de arquivo não suportado. Por favor, selecione uma imagem BMP, PNG ou JPEG.');
+                return;
+            }
+
             resetUI();
             imagePreviewDiv.style.display = 'block';
             loadingDiv.style.display = 'block';

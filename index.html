@@ -342,7 +342,6 @@
         const imagePreviewDiv = document.getElementById('imagePreview');
         const loadingDiv = document.getElementById('loading');
         const reconstructedImagesDiv = document.getElementById('reconstructedImages');
-
         compressButton.addEventListener('click', async () => {
             const file = imageInput.files[0];
             if (!file) {
@@ -361,34 +360,54 @@
             loadingDiv.style.display = 'block';
 
             try {
+                if (window.objectURLToRevoke) {
+                    URL.revokeObjectURL(window.objectURLToRevoke);
+                }
+                
+                const objectURL = URL.createObjectURL(file);
+                window.objectURLToRevoke = objectURL;
+                
+                originalImage.src = objectURL;
+                originalImage.style.display = 'block';
+                
                 const img = new Image();
-                const reader = new FileReader();
-
-                reader.onload = async (e) => {
-                    // Mostra a imagem original
-                    originalImage.src = e.target.result;
-                    originalImage.style.display = 'block';
-
-                    img.onload = async () => {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = img.width;
-                        canvas.height = img.height;
+                
+                img.onload = async () => {
+                    let canvas, width, height;
+                    
+                    canvas = document.createElement('canvas');
+                        width = img.width;
+                        height = img.height;
+                        canvas.width = width;
+                        canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0);
-
-                        const imageData = ctx.getImageData(0, 0, img.width, img.height);
-                        const pixelData = Array.from(imageData.data);
-
-                        await runCompressionTests(pixelData, img.width, img.height);
-                    };
-                    img.src = e.target.result;
+                    
+                    setTimeout(async () => {
+                        try {
+                            const ctx = canvas.getContext('2d');
+                            const imageData = ctx.getImageData(0, 0, width, height);
+                                                        const pixelData = new Uint8Array(imageData.data);
+                            
+                            await runCompressionTests(pixelData, width, height);
+                        } catch (err) {
+                            displayError('Erro ao processar imagem: ' + err.message);
+                            console.error(err);
+                        } finally {
+                            loadingDiv.style.display = 'none';
+                        }
+                    }, 100);
                 };
-                reader.onerror = (e) => displayError('Erro ao ler o arquivo: ' + e.target.error.name);
-                reader.readAsDataURL(file);
+                
+                img.onerror = (e) => {
+                    displayError('Erro ao carregar imagem');
+                    loadingDiv.style.display = 'none';
+                };
+                
+                img.src = objectURL;
             } catch (error) {
                 displayError('Aconteceu um erro: ' + error.message);
                 console.error(error);
-            } finally {
                 loadingDiv.style.display = 'none';
             }
         });
@@ -411,62 +430,109 @@
             const results = [];
             const rawPixelDataSize = pixelData.length;
             textSizeImageOriginal.textContent = `Tamanho do arquivo de origem: ${rawPixelDataSize} bytes`;
-
-            const huffmanStartTime = performance.now();
-            const { encodedData: huffmanEncoded, tree: huffmanTree } = Huffman.encode(pixelData);
-            const huffmanEndTime = performance.now();
-            const huffmanCompressionTime = huffmanEndTime - huffmanStartTime;
-
-            const huffmanDecodeStartTime = performance.now();
-            const huffmanDecoded = Huffman.decode(huffmanEncoded, huffmanTree);
-            const huffmanDecodeEndTime = performance.now();
-            const huffmanDecompressionTime = huffmanDecodeEndTime - huffmanDecodeStartTime;
-
-            const huffmanTreeJson = JSON.stringify(huffmanTree);
-            const huffmanTreeSize = huffmanTreeJson.length;
-            const huffmanHeaderSize = 4;
-            const huffmanCompressedBits = huffmanEncoded.length;
-            const huffmanCompressedDataBytes = Math.ceil(huffmanCompressedBits / 8);
-            const huffmanTotalCompressedBytes = huffmanHeaderSize + huffmanTreeSize + huffmanCompressedDataBytes;
-            const huffmanCompressionRatio = ((1 - huffmanTotalCompressedBytes / rawPixelDataSize) * 100).toFixed(2);
-
-            results.push({
-                algorithm: 'Huffman',
-                originalSize: rawPixelDataSize,
-                compressedSize: huffmanTotalCompressedBytes,
-                compressionRatio: huffmanCompressionRatio,
-                compressionTime: huffmanCompressionTime.toFixed(2),
-                decompressionTime: huffmanDecompressionTime.toFixed(2)
+            
+            await new Promise(resolve => {
+                setTimeout(async () => {
+                    try {
+                        const huffmanStartTime = performance.now();
+                        const { encodedData: huffmanEncoded, tree: huffmanTree } = Huffman.encode(pixelData);
+                        const huffmanEndTime = performance.now();
+                        const huffmanCompressionTime = huffmanEndTime - huffmanStartTime;
+                        
+                        await new Promise(resolve => {
+                            setTimeout(async () => {
+                                try {
+                                    const huffmanDecodeStartTime = performance.now();
+                                    const huffmanDecoded = Huffman.decode(huffmanEncoded, huffmanTree);
+                                    const huffmanDecodeEndTime = performance.now();
+                                    const huffmanDecompressionTime = huffmanDecodeEndTime - huffmanDecodeStartTime;
+                                    
+                                    const huffmanTreeJson = JSON.stringify(huffmanTree);
+                                    const huffmanTreeSize = huffmanTreeJson.length;
+                                    const huffmanHeaderSize = 4;
+                                    const huffmanCompressedBits = huffmanEncoded.length;
+                                    const huffmanCompressedDataBytes = Math.ceil(huffmanCompressedBits / 8);
+                                    const huffmanTotalCompressedBytes = huffmanHeaderSize + huffmanTreeSize + huffmanCompressedDataBytes;
+                                    const huffmanCompressionRatio = ((1 - huffmanTotalCompressedBytes / rawPixelDataSize) * 100).toFixed(2);
+                                    
+                                    results.push({
+                                        algorithm: 'Huffman',
+                                        originalSize: rawPixelDataSize,
+                                        compressedSize: huffmanTotalCompressedBytes,
+                                        compressionRatio: huffmanCompressionRatio,
+                                        compressionTime: huffmanCompressionTime.toFixed(2),
+                                        decompressionTime: huffmanDecompressionTime.toFixed(2)
+                                    });
+                                    
+                
+                                    const huffmanDecodedArray = new Uint8ClampedArray(huffmanDecoded);
+                                    const huffmanImageData = new ImageData(huffmanDecodedArray, width, height);
+                                    createImageCanvas(huffmanImageData, width, height, 'Huffman reconstruída');
+                                    
+                                    resolve();
+                                } catch (err) {
+                                    console.error('Erro na descompressão Huffman:', err);
+                                    resolve();
+                                }
+                            }, 0);
+                        });
+                        
+                        resolve();
+                    } catch (err) {
+                        console.error('Erro na compressão Huffman:', err);
+                        resolve();
+                    }
+                }, 0);
             });
-
-            const huffmanImageData = new ImageData(new Uint8ClampedArray(huffmanDecoded), width, height);
-            createImageCanvas(huffmanImageData, width, height, 'Huffman reconstruída');
-
-            const lzwStartTime = performance.now();
-            const lzwCompressed = LZW.compress(pixelData);
-            const lzwEndTime = performance.now();
-            const lzwCompressionTime = lzwEndTime - lzwStartTime;
-
-            const lzwDecodeStartTime = performance.now();
-            const lzwDecoded = LZW.decompress(lzwCompressed);
-            const lzwDecodeEndTime = performance.now();
-            const lzwDecompressionTime = lzwDecodeEndTime - lzwDecodeStartTime;
-
-            const lzwCompressedBytes = lzwCompressed.length * 2;
-            const lzwCompressionRatio = ((1 - lzwCompressedBytes / rawPixelDataSize) * 100).toFixed(2);
-
-            results.push({
-                algorithm: 'LZW',
-                originalSize: rawPixelDataSize,
-                compressedSize: lzwCompressedBytes,
-                compressionRatio: lzwCompressionRatio,
-                compressionTime: lzwCompressionTime.toFixed(2),
-                decompressionTime: lzwDecompressionTime.toFixed(2)
+            
+            await new Promise(resolve => {
+                setTimeout(async () => {
+                    try {
+                        const lzwStartTime = performance.now();
+                        const lzwCompressed = LZW.compress(pixelData);
+                        const lzwEndTime = performance.now();
+                        const lzwCompressionTime = lzwEndTime - lzwStartTime;
+                                        
+                        await new Promise(resolve => {
+                            setTimeout(async () => {
+                                try {
+                                    const lzwDecodeStartTime = performance.now();
+                                    const lzwDecoded = LZW.decompress(lzwCompressed);
+                                    const lzwDecodeEndTime = performance.now();
+                                    const lzwDecompressionTime = lzwDecodeEndTime - lzwDecodeStartTime;
+                                    
+                                    const lzwCompressedBytes = lzwCompressed.length * 2;
+                                    const lzwCompressionRatio = ((1 - lzwCompressedBytes / rawPixelDataSize) * 100).toFixed(2);
+                                    
+                                    results.push({
+                                        algorithm: 'LZW',
+                                        originalSize: rawPixelDataSize,
+                                        compressedSize: lzwCompressedBytes,
+                                        compressionRatio: lzwCompressionRatio,
+                                        compressionTime: lzwCompressionTime.toFixed(2),
+                                        decompressionTime: lzwDecompressionTime.toFixed(2)
+                                    });
+                                    
+                                    const lzwDecodedArray = new Uint8ClampedArray(lzwDecoded);
+                                    const lzwImageData = new ImageData(lzwDecodedArray, width, height);
+                                    createImageCanvas(lzwImageData, width, height, 'LZW reconstruída');
+                                    
+                                    resolve();
+                                } catch (err) {
+                                    console.error('Erro na descompressão LZW:', err);
+                                    resolve();
+                                }
+                            }, 0);
+                        });
+                        
+                        resolve();
+                    } catch (err) {
+                        console.error('Erro na compressão LZW:', err);
+                        resolve();
+                    }
+                }, 0);
             });
-
-            const lzwImageData = new ImageData(new Uint8ClampedArray(lzwDecoded), width, height);
-            createImageCanvas(lzwImageData, width, height, 'LZW reconstruída');
-
+            
             displayResults(results);
         }
 
@@ -493,22 +559,40 @@
             container.appendChild(h3);
 
             const canvas = document.createElement('canvas');
+            
             canvas.width = width;
             canvas.height = height;
             canvas.style.border = '1px solid #ccc';
             canvas.style.maxWidth = '100%';
             canvas.style.height = 'auto';
-            canvas.getContext('2d').putImageData(imageData, 0, 0);
+            
+            requestAnimationFrame(() => {
+                try {
+                    const ctx = canvas.getContext('2d', { alpha: false });
+                    ctx.putImageData(imageData, 0, 0);
+                } catch (err) {
+                    console.error('Erro ao renderizar imagem:', err);
+                }
+            });
+            
             container.appendChild(canvas);
-
             reconstructedImagesDiv.appendChild(container);
+            
+            applyCanvasStyle(container);
         }
 
         function applyCanvasStyle(container) {
             container.style.display = 'inline-block';
             container.style.margin = '12px';
             container.style.textAlign = 'center';
+            container.style.maxWidth = '100%';
         }
+        
+        window.addEventListener('beforeunload', () => {
+            if (window.objectURLToRevoke) {
+                URL.revokeObjectURL(window.objectURLToRevoke);
+            }
+        });
     </script>
 </body>
 </html>
